@@ -5,29 +5,28 @@ const Dentist = require("../models/Dentist");
 //@route GET /api/v1/appointments
 //@access Public
 exports.getAppointments = async (req, res, next) => {
-  let query;
+  try {
+    let query;
 
-  if (req.query.user !== "admin") {
-    query = Appointment.find({ user: req.query.user }).populate({
-      path: "dentist",
-      select: "name yearsOfExperience area",
-    });
-  } else {
-    if (req.params.dentistId) {
+    if (req.query.user && req.query.user !== "admin") {
+      query = Appointment.find({ user: req.query.user }).populate({
+        path: "dentist",
+        select: "name yearsOfExperience area",
+      });
+    } else if (req.params.dentistId) {
       console.log(req.params.dentistId);
       query = Appointment.find({ dentist: req.params.dentistId }).populate({
         path: "dentist",
         select: "name yearsOfExperience area",
       });
+    } else {
+      query = Appointment.find().populate({
+        path: "dentist",
+        select: "name yearsOfExperience area",
+      });
     }
-    query = Appointment.find().populate({
-      path: "dentist",
-      select: "name yearsOfExperience area",
-    });
-  }
 
-  try {
-    const appointments = await query;
+    const appointments = await query.exec();
 
     res.status(200).json({
       success: true,
@@ -35,11 +34,10 @@ exports.getAppointments = async (req, res, next) => {
       data: appointments,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Cannot find Appointments" });
+    res.status(500).json({ success: false, message: "Cannot find Appointments" });
   }
 };
+
 
 //@desc Get single appointment
 //@route GET /api/v1/appointments/:id
@@ -74,7 +72,7 @@ exports.addAppointment = async (req, res, next) => {
     const dentist = await Dentist.findById(req.params.dentistId);
 
     if (!dentist) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({ success: false, message:"Cannot find Dentist" });
     }
 
     req.body.user = req.user.id;
