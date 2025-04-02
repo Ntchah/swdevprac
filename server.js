@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
+require("./config/redis/redisSubscriber");
 
 dotenv.config({ path: "./config/config.env" });
 

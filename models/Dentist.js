@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const validTimeslots = require("../utils/enum/timeslots");
 
 const DentistSchema = new mongoose.Schema(
   {
@@ -12,12 +13,41 @@ const DentistSchema = new mongoose.Schema(
     yearsOfExperience: {
       type: Number,
       required: [true, "Please add year of experience"],
-      min: [0, "Years of experience cannot be negative"], 
+      min: [0, "Years of experience cannot be negative"],
     },
     area: {
       type: String,
       required: [true, "Please add an area of expertise"],
     },
+    timeslots: [
+      {
+        date: {
+          type: String,
+          required: [true, "Please add appointment date"],
+          match: [
+            /^\d{4}-\d{2}-\d{2}$/,
+            "Date must be in YYYY-MM-DD format.",
+          ],
+        },
+        slots: [
+          {
+            time: { 
+              type: String, 
+              enum: validTimeslots 
+            },
+            appointment: { 
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Appointment",
+              default: null 
+            },
+            booked: { 
+              type: Boolean, 
+              default: false 
+            }, 
+          },
+        ],
+      },
+    ],
   },
   {
     toJSON: { virtuals: true },

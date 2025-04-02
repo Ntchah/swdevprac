@@ -14,6 +14,7 @@ const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
 
 router.use("/:dentistId/appointments", appointmentRouter);
+router.use("/:dentistId/appointments/confirm",appointmentRouter);
 
 router.route("/").get(getDentists).post(protect, authorize("admin"), createDentist);
 router.route("/:id").get(getDentist).put(protect, authorize("admin"), updateDentist).delete(protect, authorize("admin"), deleteDentist);
