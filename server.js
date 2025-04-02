@@ -8,7 +8,7 @@ dotenv.config({ path: "./config/config.env" });
 
 connectDB();
 
-const dentist = require("./routes/dentists");
+const dentists = require("./routes/dentists");
 const appointments = require("./routes/appointments");
 const auth = require("./routes/auth");
 
