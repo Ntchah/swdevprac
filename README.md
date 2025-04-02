@@ -8,8 +8,9 @@ Dentist Booking Backend Service for Software Engineering I final project
    git clone https://github.com/Ntchah/swdevprac.git
    ```
 2. set up .env file
-3. npm install
-4. npm run dev
+3. redis-server --port <YOUR_REDIS_PORT>
+4. npm install
+5. npm run dev
 
 ## Contributing
 
