@@ -6,6 +6,10 @@ const connectDB = require("./config/db");
 require("./config/redis/redisSubscriber");
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUI = require('swagger-ui-express');
+const mongoSanitize = require('express-mongo-sanitize');
+const helmet = require('helmet');
+const { xss } = require('express-xss-sanitizer');
+const rateLimit = require('express-rate-limit');
 
 dotenv.config({ path: "./config/config.env" });
 
@@ -23,6 +27,19 @@ app.use(cookieParser());
 app.use("/api/v1/dentists", dentists);
 app.use("/api/v1/appointments", appointments);
 app.use("/api/v1/auth", auth);
+
+//security------
+
+app.use(mongoSanitize());
+app.use(helmet());
+app.use(xss());
+
+const limiter = rateLimit({
+  windowsMs: 10 * 60 * 1000,
+  max: 100
+});
+
+app.use(limiter);
 
 // swagger-------
 
