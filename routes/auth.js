@@ -1,5 +1,5 @@
 const express = require("express");
-const { register, login, getMe } = require("../controllers/auth");
+const { register, login, getMe, logout} = require("../controllers/auth");
 const { protect } = require("../middleware/auth");
 
 const router = express.Router();
@@ -7,6 +7,7 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.get("/me", protect, getMe);
+router.get('/logout', logout);
 
 module.exports = router;
 
@@ -114,4 +115,18 @@ module.exports = router;
  *       401:
  *         description: Unauthorized access
  */
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   get:
+ *     summary: Log user out and clear cookie
+ *     tags: [Authentication]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ */
+
 
