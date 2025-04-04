@@ -30,6 +30,8 @@ app.use("/api/v1/auth", auth);
 
 //security------
 
+app.use(cors());
+
 app.use(mongoSanitize());
 app.use(helmet());
 app.use(xss());
