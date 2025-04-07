@@ -31,10 +31,23 @@ app.use("/api/v1/auth", auth);
 //security------
 
 app.use(cors());
-
-app.use(mongoSanitize());
 app.use(helmet());
 app.use(xss());
+
+const { sanitize } = require('express-mongo-sanitize');
+
+app.use((req, res, next) => {
+  if (req.body) req.body = sanitize(req.body);
+  if (req.params) req.params = sanitize(req.params);
+  if (req.query) {
+    const sanitizedQuery = sanitize(req.query);
+    Object.keys(sanitizedQuery).forEach((key) => {
+      req.query[key] = sanitizedQuery[key];
+    });
+  }
+  next();
+});
+
 
 const limiter = rateLimit({
   windowsMs: 10 * 60 * 1000,
