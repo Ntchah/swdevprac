@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const jwt = require('jsonwebtoken');
 
 const sendTokenResponse = (user, statusCode, res) => {
   const token = user.getSignedJwtToken();
@@ -26,6 +27,8 @@ const sendTokenResponse = (user, statusCode, res) => {
       token });
 };
 
+const sendEmail = require('../utils/sendEmail');
+
 // @desc    Register a user
 // @route   POST /api/v1/auth/register
 // @access  Public
@@ -33,6 +36,7 @@ exports.register = async (req, res, next) => {
   try {
     const { name, email, password, role, tel } = req.body;
 
+    // Create user (but don't mark as verified yet)
     const user = await User.create({
       name,
       email,
@@ -41,11 +45,27 @@ exports.register = async (req, res, next) => {
       tel,
     });
 
-    sendTokenResponse(user, 200, res);
-  } catch (err) {
-    res.status(400).json({ success: false, error: err });
-    console.log(err.stack);
-  }
+    // Generate a verification token
+    const verificationToken = user.generateVerificationToken();
+
+    // Send the email with the verification link
+    const verificationUrl = `${process.env.CLIENT_URL}/api/v1/auth/verify-email?token=${verificationToken}`;
+
+    const message = `Hello ${user.name},\n\nPlease verify your email by clicking on the following link:\n\n${verificationUrl}`;
+
+    await sendEmail(user.email, "Email Verification", message);
+
+    // Respond to the user
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent. Please check your inbox.',
+    });
+
+    await user.save();
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+      console.log(err.stack);
+    }
 };
 
 // @desc    Login a user
@@ -99,4 +119,37 @@ exports.logout = async (req, res, next) => {
     success: true,
     data: {}
   });
+};
+
+// @desc    Verify email
+// @route   GET /api/v1/auth/verify-email
+// @access  Public
+exports.verifyEmail = async (req, res, next) => {
+  const { token } = req.query;
+
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Invalid token' });
+    }
+
+    // Check if the token is expired
+    if (user.verificationExpires < Date.now()) {
+      return res.status(400).json({ success: false, error: 'Token expired' });
+    }
+
+    // Mark the user as verified
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Your email has been verified!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    console.log(err.stack);
+  }
 };

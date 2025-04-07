@@ -4,12 +4,12 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
 require("./config/redis/redisSubscriber");
-const swaggerJsDoc = require('swagger-jsdoc');
-const swaggerUI = require('swagger-ui-express');
-const mongoSanitize = require('express-mongo-sanitize');
-const helmet = require('helmet');
-const { xss } = require('express-xss-sanitizer');
-const rateLimit = require('express-rate-limit');
+require("./utils/cron");
+const swaggerJsDoc = require("swagger-jsdoc");
+const swaggerUI = require("swagger-ui-express");
+const helmet = require("helmet");
+const { xss } = require("express-xss-sanitizer");
+const rateLimit = require("express-rate-limit");
 
 dotenv.config({ path: "./config/config.env" });
 
@@ -18,6 +18,7 @@ connectDB();
 const dentists = require("./routes/dentists");
 const appointments = require("./routes/appointments");
 const auth = require("./routes/auth");
+const admin = require("./routes/admin");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 app.use("/api/v1/dentists", dentists);
 app.use("/api/v1/appointments", appointments);
 app.use("/api/v1/auth", auth);
+app.use("/api/v1/admin", admin);
 
 //security------
 
@@ -51,7 +53,7 @@ app.use((req, res, next) => {
 
 const limiter = rateLimit({
   windowsMs: 10 * 60 * 1000,
-  max: 100
+  max: 100,
 });
 
 app.use(limiter);
@@ -60,25 +62,22 @@ app.use(limiter);
 
 const swaggerOptions = {
   swaggerDefinition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'Library API',
-      version: '1.0.0',
-      description: 'Dentist Booking App API'
+      title: "Library API",
+      version: "1.0.0",
+      description: "Dentist Booking App API",
     },
-    servers:
-      [
-        {
-          url:`http://localhost:${process.env.PORT}/api/v1`
-        }
-      ],
+    servers: [
+      {
+        url: `http://localhost:${process.env.PORT}/api/v1`,
+      },
+    ],
   },
-  apis: ['./routes/*.js'],
+  apis: ["./routes/*.js"],
 };
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocs));
-
-//------------
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerDocs));
 
 const PORT = process.env.PORT || 5000;
 

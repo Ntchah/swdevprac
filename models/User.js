@@ -42,11 +42,23 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: String,
+  verificationExpires: Date,
 });
 
 UserSchema.pre("save", async function (next) {
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isModified('password')) {
+    if (!this.password) {
+      throw new Error("Password is required");
+    }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
+  
 });
 
 UserSchema.methods.getSignedJwtToken = function () {
@@ -57,6 +69,18 @@ UserSchema.methods.getSignedJwtToken = function () {
 
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+UserSchema.methods.generateVerificationToken = function () {
+  const verificationToken = jwt.sign(
+    { id: this._id, email: this.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+
+  this.verificationToken = verificationToken;
+  this.verificationExpires = Date.now() + 3600000; // Token expires in 1 hour
+  return verificationToken;
 };
 
 module.exports = mongoose.model("User", UserSchema);

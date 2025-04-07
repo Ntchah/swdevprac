@@ -1,6 +1,7 @@
 const express = require("express");
 const { register, login, getMe, logout} = require("../controllers/auth");
 const { protect } = require("../middleware/auth");
+const { verifyEmail } = require("../controllers/auth");
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ router.post("/register", register);
 router.post("/login", login);
 router.get("/me", protect, getMe);
 router.get('/logout', logout);
+router.get("/verify-email", verifyEmail);
 
 module.exports = router;
 
@@ -22,11 +24,6 @@ module.exports = router;
  *         - email
  *         - password
  *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *           description: The auto-generated ID of the user
- *           example: d290f1ee-6c54-4b01-90e6-d701749f0851
  *         name:
  *           type: string
  *           description: User's full name
@@ -40,11 +37,14 @@ module.exports = router;
  *           type: string
  *           format: password
  *           description: User's password (hashed)
- *         createdAt:
+ *         tel:
  *           type: string
- *           format: date-time
- *           description: Date when the user was created
- *           example: 2025-04-04T12:00:00.000Z
+ *           description: User's telephone
+ *           example: 0912345678
+ *         role:
+ *           type: string
+ *           description: user/admin
+ *           example: 
  */
 
 /**
