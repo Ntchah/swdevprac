@@ -88,7 +88,7 @@ exports.createAppointment = async (req, res, next) => {
     // Validate dentist's available timeslot
     const dateSlot = dentist.timeslots.find((slot) => slot.date === apptDate);
     if (!dateSlot) {
-      return res.status(400).json({ success: false, message: "No available timeslots for this date" });
+      return res.status(400).json({ success: false, message: "This timeslot not available for this date" });
     }
 
     const slot = dateSlot.slots.find((s) => s.time === apptTimeSlot);
