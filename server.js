@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const connectDB = require("./config/db");
-require("./config/redis/redisSubscriber");
+const {connectRedis} = require("./config/redisClient");
 require("./utils/cron");
 const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUI = require("swagger-ui-express");
@@ -14,6 +14,7 @@ const rateLimit = require("express-rate-limit");
 dotenv.config({ path: "./config/config.env" });
 
 connectDB();
+connectRedis();
 
 const dentists = require("./routes/dentists");
 const appointments = require("./routes/appointments");

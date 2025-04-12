@@ -7,14 +7,10 @@ const {
   updateDentist,
   deleteDentist,
 } = require("../controllers/dentists");
-const appointmentRouter = require("./appointments");
 
 const router = express.Router();
 
 const { protect, authorize } = require("../middleware/auth");
-
-router.use("/:dentistId/appointments", appointmentRouter);
-router.use("/:dentistId/appointments/confirm",appointmentRouter);
 
 router.route("/").get(getDentists).post(protect, authorize("admin"), createDentist);
 router.route("/:id").get(getDentist).put(protect, authorize("admin"), updateDentist).delete(protect, authorize("admin"), deleteDentist);
@@ -176,63 +172,4 @@ module.exports = router;
 *         description: Unauthorized access
 */
 
-/**
-* @swagger
-* /dentists/{dentistId}/appointments:
-*   get:
-*     summary: Get appointments for a dentist
-*     tags: [Appointments]
-*     parameters:
-*       - name: dentistId
-*         in: path
-*         required: true
-*         schema:
-*           type: string
-*     responses:
-*       200:
-*         description: List of appointments
-*   post:
-*     summary: Create an appointment for a dentist
-*     tags: [Appointments]
-*     requestBody:
-*       required: true
-*       content:
-*         application/json:
-*           schema:
-*             type: object
-*             properties:
-*               date:
-*                 type: string
-*               time:
-*                 type: string
-*     responses:
-*       201:
-*         description: Appointment created
-*/
-
-/**
-* @swagger
-* /dentists/{dentistId}/appointments/confirm:
-*   post:
-*     summary: Confirm an appointment for a dentist
-*     tags: [Appointments]
-*     parameters:
-*       - name: dentistId
-*         in: path
-*         required: true
-*         schema:
-*           type: string
-*     requestBody:
-*       required: true
-*       content:
-*         application/json:
-*           schema:
-*             type: object
-*             properties:
-*               appointmentId:
-*                 type: string
-*     responses:
-*       200:
-*         description: Appointment confirmed
-*/
 

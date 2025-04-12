@@ -2,7 +2,7 @@ const express = require("express");
 const {
   getAppointments,
   getAppointment,
-  addAppointment,
+  createAppointment,
   updateAppointment,
   deleteAppointment,
   confirmAppointment,
@@ -12,7 +12,8 @@ const router = express.Router({ mergeParams: true });
 
 const { protect, authorize } = require("../middleware/auth");
 
-router.route("/").get(protect, getAppointments).post(protect, authorize("admin", "user"), addAppointment).post(protect, authorize("admin", "user"), confirmAppointment);
+router.route("/").get(protect, getAppointments).post(protect, authorize("admin", "user"), createAppointment);
+router.route("/confirm").post(protect, authorize("admin", "user"),confirmAppointment);
 router.route("/:id").get(protect, getAppointment).put(protect, authorize("admin", "user"), updateAppointment).delete(protect, authorize("admin", "user"), deleteAppointment);
 
 module.exports = router;
@@ -172,5 +173,106 @@ module.exports = router;
  *         description: Appointment deleted successfully
  *       404:
  *         description: Appointment not found
+ */
+
+/**
+ * @swagger
+ * /appointments:
+ *   post:
+ *     summary: Reserve a timeslot for appointment (temporary lock in Redis)
+ *     tags: [Appointments]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - apptDate
+ *               - apptTimeSlot
+ *               - dentistId
+ *             properties:
+ *               apptDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-04-12"
+ *               apptTimeSlot:
+ *                 type: string
+ *                 example: "09:00-10:00"
+ *               dentistId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "6618a3340b1e9cfa2e987abc"
+ *     responses:
+ *       201:
+ *         description: Timeslot successfully reserved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Timeslot successfully reserved! Please confirm within 10 minutes.
+ *       400:
+ *         description: Validation error or missing timeslot
+ *       404:
+ *         description: Dentist not found
+ *       409:
+ *         description: Slot already locked
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /appointments/confirm:
+ *   post:
+ *     summary: Confirm a reserved appointment
+ *     tags: [Appointments]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - apptDate
+ *               - apptTimeSlot
+ *               - dentistId
+ *             properties:
+ *               apptDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-04-12"
+ *               apptTimeSlot:
+ *                 type: string
+ *                 example: "09:00-10:00"
+ *               dentistId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "6618a3340b1e9cfa2e987abc"
+ *     responses:
+ *       201:
+ *         description: Appointment confirmed and saved to database
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Appointment'
+ *       400:
+ *         description: Validation error or user already has an appointment
+ *       404:
+ *         description: Dentist or locked timeslot not found
+ *       409:
+ *         description: Booking expired or not found in Redis
+ *       500:
+ *         description: Server error
  */
 
