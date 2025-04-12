@@ -34,3 +34,8 @@ git commit -m "refactor: <what-you-refactored>"
 
 For more details, refer to the [Conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) format documentation.
 
+## Access redis db
+```bash
+redis-cli -p 6380 -n 0
+```
+
