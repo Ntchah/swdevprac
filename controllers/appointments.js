@@ -1,6 +1,6 @@
 const Appointment = require("../models/Appointment");
 const Dentist = require("../models/Dentist");
-const { client } = require("../config/redis/redisClient"); // Use the shared Redis client
+const { client } = require("../config/redisClient"); // Use the shared Redis client
 
 //@desc Get all appointments
 //@route GET /api/v1/appointments
@@ -63,14 +63,15 @@ exports.getAppointment = async (req, res, next) => {
   }
 };
 
-// @desc Add appointment
-// @route POST /api/v1/dentists/:dentistId/appointments
+// @desc create appointment
+// @route POST /api/v1/appointments
 // @access Private
-exports.addAppointment = async (req, res, next) => {
+exports.createAppointment = async (req, res, next) => {
   try {
-    const { apptDate, apptTimeSlot } = req.body;
-    const dentistId = req.params.dentistId;
+    const { apptDate, apptTimeSlot, dentistId } = req.body;
     const userId = req.user.id;
+
+    // MongoDB database validation handling --------------------------------------
 
     // Validate dentist
     const dentist = await Dentist.findById(dentistId);
@@ -99,19 +100,16 @@ exports.addAppointment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Time slot already booked" });
     }
 
-    // Redis key for booking session
+    // Redis for booking session ---------------------------------------------
     const bookingKey = `booking:${dentistId}:${apptDate}:${apptTimeSlot}`;
 
-    // Check if timeslot is already booked in Redis
-    const existingBooking = await client.get(bookingKey);
-    if (existingBooking) {
-      return res.status(400).json({ success: false, message: "This timeslot is already reserved." });
-    }
+    const locked = await client.set(bookingKey, userId, {
+      EX: 600,
+      NX: true
+    });
+    if(!locked) return res.status(409).json({ message: "Slot already locked" });
 
-    // Reserve the slot in Redis (expires in 10 minutes)
-    await client.SETEX(bookingKey, 600, JSON.stringify({ userId, dentistId, apptDate, apptTimeSlot }));
-
-    return res.status(201).json({ success: true, message: "Timeslot reserved! Confirm within 10 minutes." });
+    return res.status(201).json({ success: true, message: "Timeslot successfully reserved! PLease confirm within 10 minutes." });
 
   } catch (error) {
     console.error(error);
@@ -119,36 +117,43 @@ exports.addAppointment = async (req, res, next) => {
   }
 };
 
+
+
 // @desc Confirm appointment
-// @route POST /api/v1/dentists/:dentistId/appointments/confirm
+// @route POST /api/v1/appointments/confirm
 // @access Private
 exports.confirmAppointment = async (req, res) => {
   try {
-    const { apptDate, apptTimeSlot } = req.body;
-    const dentistId = req.params.dentistId;
+    const { apptDate, apptTimeSlot, dentistId } = req.body;
     const userId = req.user.id;
 
     // Redis key for reservation
     const bookingKey = `booking:${dentistId}:${apptDate}:${apptTimeSlot}`;
 
-    // Retrieve from Redis
-    const bookingData = await client.get(bookingKey);
-    if (!bookingData) {
+    // Validate booking lock owner
+    const lockOwner = await client.get(bookingKey);
+    if (!lockOwner) {
       return res.status(400).json({ success: false, message: "Booking session expired or does not exist." });
     }
-
-    // Check if user owns this booking
-    const parsedBooking = JSON.parse(bookingData);
-    if (parsedBooking.userId !== userId) {
-      return res.status(400).json({ success: false, message: "This timeslot is already reserved by another user." });
+    if(lockOwner != userId) {
+      return res.status(403).json({ message: "This timeslot is already locked by another user." });
     }
 
-    // Validate dentist and timeslot in MongoDB
+    // MongoDB database validation handling --------------------------------------
+
+    // Validate dentist
     const dentist = await Dentist.findById(dentistId);
     if (!dentist) {
       return res.status(404).json({ success: false, message: "Cannot find Dentist" });
     }
 
+    // Check if user already has an appointment in MongoDB
+    const existingAppointment = await Appointment.findOne({ user: userId });
+    if (existingAppointment && req.user.role !== "admin") {
+      return res.status(400).json({ success: false, message: `User ${userId} already has an appointment.` });
+    }
+
+    // Validate dentist's available timeslot
     const dateSlot = dentist.timeslots.find((slot) => slot.date === apptDate);
     if (!dateSlot) {
       return res.status(400).json({ success: false, message: "No available timeslots for this date" });
@@ -160,8 +165,7 @@ exports.confirmAppointment = async (req, res) => {
     }
 
     if (slot.booked) {
-      await client.del(bookingKey); // Cleanup expired Redis session
-      return res.status(400).json({ success: false, message: "Time slot already booked in MongoDB" });
+      return res.status(400).json({ success: false, message: "Time slot already booked" });
     }
 
     // Confirm appointment in MongoDB
@@ -169,6 +173,7 @@ exports.confirmAppointment = async (req, res) => {
 
     // Mark slot as booked in MongoDB
     slot.booked = true;
+    slot.appointment = appointment.id;
     await dentist.save();
 
     // Remove booking session from Redis
@@ -181,7 +186,6 @@ exports.confirmAppointment = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 
 // @desc Update appointment
