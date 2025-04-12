@@ -21,6 +21,7 @@ const DentistSchema = new mongoose.Schema(
     },
     timeslots: [
       {
+        _id: false,
         date: {
           type: String,
           required: [true, "Please add appointment date"],
@@ -31,6 +32,7 @@ const DentistSchema = new mongoose.Schema(
         },
         slots: [
           {
+            _id: false,
             time: { 
               type: String, 
               enum: validTimeslots 
