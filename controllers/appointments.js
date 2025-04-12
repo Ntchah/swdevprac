@@ -81,8 +81,8 @@ exports.createAppointment = async (req, res, next) => {
 
     // Check if user already has an appointment in MongoDB
     const existingAppointment = await Appointment.findOne({ user: userId });
-    if (existingAppointment && req.user.role !== "admin") {
-      return res.status(400).json({ success: false, message: `User ${userId} already has an appointment.` });
+    if (existingAppointment) {
+      return res.status(400).json({ success: false, message: `You [User ${userId}] already has an appointment.` });
     }
 
     // Validate dentist's available timeslot
