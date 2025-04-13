@@ -1,0 +1,72 @@
+@startuml
+header Dentist Booking Sequence Diagram
+footer Page %page% of %lastpage%
+title "Manage Dentist"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:appointments" as routerAppointments
+participant "<<router>>\n:auths" as routerAuth
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:appointments" as controllersAppointments
+participant "<<controllers>>\n:auths" as controllersAuth
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Appointments" as modelAppointment
+participant "<<model>>\n:Users" as modelUser
+participant "<<model>>\n:Dentists" as modelDentist
+database "<<Redis>>\n:appointmentLockQueue" as AppointmentsLockDatabase
+database "<<MongoDB>>\n:appointments" as AppointmentsDatabase
+database "<<MongoDB>>\n:users" as UsersDatabase
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+client->server ++: req.get('/api/v1/dentists')
+server->routerDentists ++: app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++: getDentists()
+controllersDentists -> modelDentist ++: Dentist.find(query).populate("appointments")
+modelDentist -> DentistsDatabase ++: query with filters/sort/pagination
+DentistsDatabase --> modelDentist --: [dentists]
+controllersDentists <-- modelDentist --: [dentists]
+controllersDentists -> client --: response (list of dentists)
+
+client->server : req.get('/api/v1/dentists/:id')
+server->routerDentists : app.use('/api/v1/dentists/:id',dentists)
+routerDentists -> controllersDentists ++: getDentist()
+controllersDentists -> modelDentist ++: Dentist.findById(req.params.id)
+modelDentist -> DentistsDatabase ++: findById
+DentistsDatabase --> modelDentist --: dentist
+controllersDentists <-- modelDentist --: dentist
+controllersDentists -> client --: response (single dentist)
+
+client->server : req.post('/api/v1/dentists')
+server->routerDentists : app.use('/api/v1/dentists',dentists)
+routerDentists -> controllersDentists ++: createDentist()
+controllersDentists -> modelDentist ++: Dentist.create(req.body)
+modelDentist -> DentistsDatabase ++: insert dentist
+DentistsDatabase --> modelDentist --: created dentist
+controllersDentists <-- modelDentist --: dentist
+controllersDentists -> client --: response (created dentist)
+
+client->server : req.put('/api/v1/dentists/:id')
+server->routerDentists : app.use('/api/v1/dentists/:id',dentists)
+routerDentists -> controllersDentists ++: updateDentist()
+controllersDentists -> modelDentist ++: Dentist.findByIdAndUpdate(req.params.id, req.body)
+modelDentist -> DentistsDatabase ++: update dentist by id
+DentistsDatabase --> modelDentist --: updated dentist
+controllersDentists <-- modelDentist --: updated dentist
+controllersDentists -> client --: response (updated dentist)
+
+client->server : req.delete('/api/v1/dentists/:id')
+server->routerDentists : app.use('/api/v1/dentists/:id',dentists)
+routerDentists -> controllersDentists ++: deleteDentist()
+controllersDentists -> modelDentist ++: Dentist.findById(req.params.id)
+modelDentist -> DentistsDatabase ++: findById
+DentistsDatabase --> modelDentist --: dentist
+controllersDentists <-- modelDentist --: dentist
+controllersDentists -> modelAppointment ++: Appointment.deleteMany({ dentist: req.params.id })
+modelAppointment -> AppointmentsDatabase ++: deleteMany
+AppointmentsDatabase --> modelAppointment --: deleted
+controllersDentists -> modelDentist ++: Dentist.deleteOne({ _id: req.params.id })
+modelDentist -> DentistsDatabase ++: deleteOne
+DentistsDatabase --> modelDentist --: deleted
+controllersDentists -> client --: response (deletion success)
+@enduml
