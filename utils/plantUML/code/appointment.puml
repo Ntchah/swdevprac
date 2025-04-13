@@ -1,0 +1,66 @@
+@startuml
+header Dentist Booking Sequence Diagram
+footer Page %page% of %lastpage%
+title "Manage Appointment"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:appointments" as routerAppointments
+participant "<<router>>\n:auths" as routerAuth
+participant "<<router>>\n:dentists" as routerDentists
+participant "<<controllers>>\n:appointments" as controllersAppointments
+participant "<<controllers>>\n:auths" as controllersAuth
+participant "<<controllers>>\n:dentists" as controllersDentists
+participant "<<model>>\n:Appointments" as modelAppointment
+participant "<<model>>\n:Users" as modelUser
+participant "<<model>>\n:Dentists" as modelDentist
+database "<<Redis>>\n:appointmentLockQueue" as AppointmentsLockDatabase
+database "<<MongoDB>>\n:appointments" as AppointmentsDatabase
+database "<<MongoDB>>\n:users" as UsersDatabase
+database "<<MongoDB>>\n:dentists" as DentistsDatabase
+
+
+client->server ++:req.post('/api/v1/appointments')
+server->routerAppointments ++:app.use('/api/v1/appointments',appointments)
+routerAppointments -> controllersAppointments ++:createAppointment()
+controllersAppointments ->AppointmentsLockDatabase ++: AppointmentKey
+controllersAppointments <-- AppointmentsLockDatabase --:userId
+controllersAppointments->client --:response
+
+client->server :req.post('/api/v1/appointments/confirm')
+server->routerAppointments :app.use('/api/v1/appointments/confirm',appointments)
+routerAppointments -> controllersAppointments ++:createAppointment()
+controllersAppointments->modelAppointment ++:create(req.body)
+modelAppointment ->AppointmentsDatabase ++: AppointmentSchema
+AppointmentsDatabase --> modelAppointment --: appointment
+controllersAppointments <-- modelAppointment --:appointment
+controllersAppointments->client --:response
+
+client->server :req.get('/api/v1/appointments/')
+server->routerAppointments :app.use('/api/v1/appointments/,appointments')
+routerAppointments -> controllersAppointments ++: getAppointments()
+controllersAppointments -> AppointmentsDatabase : Appointment.find()
+AppointmentsDatabase --> controllersAppointments : [appointments]
+controllersAppointments -> client : response (list of appointments)
+
+client->server :req.get('/api/v1/appointments/:id')
+server->routerAppointments :app.use('/api/v1/appointments/:id, appointments')
+routerAppointments -> controllersAppointments : getAppointment()
+controllersAppointments -> AppointmentsDatabase : Appointment.findById(id)
+AppointmentsDatabase --> controllersAppointments : appointment
+controllersAppointments -> client : response (single appointment)
+
+client->server :req.put('/api/v1/appointments/:id')
+server->routerAppointments :app.use('/api/v1/appointments/:id',appintments)
+routerAppointments -> controllersAppointments : updateAppointment()
+controllersAppointments -> AppointmentsDatabase : Appointment.findByIdAndUpdate()
+AppointmentsDatabase --> controllersAppointments : updated appointment
+controllersAppointments -> client : response (updated appointment)
+
+client->server :req.delete('/api/v1/appointments/:id')
+server->routerAppointments :app.use('/api/v1/appointments/:id',appintments)
+routerAppointments -> controllersAppointments : deleteAppointment()
+controllersAppointments -> AppointmentsDatabase : Appointment.findByIdAndDelete()
+AppointmentsDatabase --> controllersAppointments : deleted appointment
+controllersAppointments -> client : response (deleted confirmation)
+@enduml

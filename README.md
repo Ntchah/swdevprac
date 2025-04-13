@@ -39,3 +39,24 @@ For more details, refer to the [Conventional commit](https://www.conventionalcom
 redis-cli -p 6380 -n 0
 ```
 
+## Class Diagram
+
+https://drive.google.com/file/d/1Ue3ij0wyIcOpFzY4JcmcVLWJ9oAnwNjc/view?usp=sharing
+
+## Sequence Diagram
+
+Appointment
+
+![Appointment Diagram](./utils/plantUML/image/appointment.png)
+
+Authentication
+
+![Auth Diagram](./utils/plantUML/image/auth.png)
+
+Dentist
+
+![Dentist Diagram](./utils/plantUML/image/dentist.png)
+
+
+
+
