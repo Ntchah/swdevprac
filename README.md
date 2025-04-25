@@ -59,7 +59,7 @@ Dentist
 
 ## Use Case Diagram
 
-(./utils/useCaseDiagram.png)
+![Use Case Diagram](./utils/useCaseDiagram.png)
 
 
 
