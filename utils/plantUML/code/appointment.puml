@@ -19,13 +19,15 @@ database "<<MongoDB>>\n:appointments" as AppointmentsDatabase
 database "<<MongoDB>>\n:users" as UsersDatabase
 database "<<MongoDB>>\n:dentists" as DentistsDatabase
 
-
+== ==
+group get all appointments
 client->server ++:req.post('/api/v1/appointments')
 server->routerAppointments ++:app.use('/api/v1/appointments',appointments)
 routerAppointments -> controllersAppointments ++:createAppointment()
 controllersAppointments ->AppointmentsLockDatabase ++: AppointmentKey
 controllersAppointments <-- AppointmentsLockDatabase --:userId
 controllersAppointments->client --:response
+== ==
 
 client->server :req.post('/api/v1/appointments/confirm')
 server->routerAppointments :app.use('/api/v1/appointments/confirm',appointments)
