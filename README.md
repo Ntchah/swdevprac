@@ -57,6 +57,9 @@ Dentist
 
 ![Dentist Diagram](./utils/plantUML/image/dentist.png)
 
+## Use Case Diagram
+
+(./utils/useCaseDiagram.png)
 
 
 
