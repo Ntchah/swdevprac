@@ -71,6 +71,13 @@ exports.createAppointment = async (req, res, next) => {
     const { apptDate, apptTimeSlot, dentistId } = req.body;
     const userId = req.user.id;
 
+    if (!apptDate || !apptTimeSlot || !dentistId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide apptDate, apptTimeSlot, and dentistId",
+      });
+    }
+
     // MongoDB database validation handling --------------------------------------
 
     // Validate dentist
@@ -88,7 +95,7 @@ exports.createAppointment = async (req, res, next) => {
     // Validate dentist's available timeslot
     const dateSlot = dentist.timeslots.find((slot) => slot.date === apptDate);
     if (!dateSlot) {
-      return res.status(400).json({ success: false, message: "This timeslot not available for this date" });
+      return res.status(400).json({ success: false, message: "This date is not available" });
     }
 
     const slot = dateSlot.slots.find((s) => s.time === apptTimeSlot);
@@ -107,7 +114,7 @@ exports.createAppointment = async (req, res, next) => {
       EX: 600,
       NX: true
     });
-    if(!locked) return res.status(409).json({ message: "Slot already locked" });
+    if (!locked) return res.status(409).json({ message: "Slot already locked" });
 
     return res.status(201).json({ success: true, message: "Timeslot successfully reserved! PLease confirm within 10 minutes." });
 
@@ -127,6 +134,13 @@ exports.confirmAppointment = async (req, res) => {
     const { apptDate, apptTimeSlot, dentistId } = req.body;
     const userId = req.user.id;
 
+    if (!apptDate || !apptTimeSlot || !dentistId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide apptDate, apptTimeSlot, and dentistId",
+      });
+    }
+
     // Redis key for reservation
     const bookingKey = `booking:${dentistId}:${apptDate}:${apptTimeSlot}`;
 
@@ -135,7 +149,7 @@ exports.confirmAppointment = async (req, res) => {
     if (!lockOwner) {
       return res.status(400).json({ success: false, message: "Booking session expired or does not exist." });
     }
-    if(lockOwner != userId) {
+    if (lockOwner != userId) {
       return res.status(403).json({ message: "This timeslot is already locked by another user." });
     }
 
@@ -156,7 +170,7 @@ exports.confirmAppointment = async (req, res) => {
     // Validate dentist's available timeslot
     const dateSlot = dentist.timeslots.find((slot) => slot.date === apptDate);
     if (!dateSlot) {
-      return res.status(400).json({ success: false, message: "No available timeslots for this date" });
+      return res.status(400).json({ success: false, message: "This date is not available" });
     }
 
     const slot = dateSlot.slots.find((s) => s.time === apptTimeSlot);
@@ -191,60 +205,119 @@ exports.confirmAppointment = async (req, res) => {
 // @desc Update appointment
 // @route PUT /api/v1/appointments/:id
 // @access Private
-exports.updateAppointment = async (req, res, next) => {
+exports.updateAppointment = async (req, res) => {
   try {
-    let appointment = await Appointment.findById(req.params.id);
+    const { apptDate, apptTimeSlot, dentistId } = req.body;
+    const userId = req.user.id;
 
-    if (!appointment) {
-      return res.status(404).json({ success: false });
-    }
-
-    if (
-      appointment.user.toString() !== req.user.id &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(401).json({
+    if (!apptDate || !apptTimeSlot || !dentistId) {
+      return res.status(400).json({
         success: false,
-        message: "You are not authorized to update this appointment",
+        message: "Please provide apptDate, apptTimeSlot, and dentistId",
       });
     }
 
-    appointment = await Appointment.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    let appointment = await Appointment.findById(req.params.id).populate("dentist");
 
-    res.status(200).json({ success: true, data: appointment });
-  } catch (error) {
-    res.status(500).json({ success: false });
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+
+    // Authorization check
+    if (appointment.user.toString() !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Not authorized" });
+    }
+
+    const oldDentist = appointment.dentist;
+
+    // Release old timeslot
+    const oldDateSlot = oldDentist.timeslots.find(slot => slot.date === appointment.apptDate);
+    const oldSlot = oldDateSlot?.slots.find(s => s.time === appointment.apptTimeSlot);
+
+    if (oldSlot) {
+      oldSlot.booked = false;
+      oldSlot.appointment = null;
+    }
+    await oldDentist.save();
+
+    // Validate new dentist
+    const newDentist = await Dentist.findById(dentistId);
+    if (!newDentist) {
+      return res.status(404).json({ success: false, message: "Dentist not found" });
+    }
+
+    // Validate dentist's available timeslot
+    const newDateSlot = newDentist.timeslots.find((slot) => slot.date === apptDate);
+    if (!newDateSlot) {
+      return res.status(400).json({ success: false, message: "This date is not available" });
+    }
+
+    const newSlot = newDateSlot?.slots.find((s) => s.time === apptTimeSlot);
+    if (!newSlot) {
+      return res.status(400).json({ success: false, message: "Invalid time slot" });
+    }
+
+    if (newSlot.booked) {
+      return res.status(400).json({ success: false, message: "Time slot already booked" });
+    }
+
+
+    // Update slot as booked
+    newSlot.booked = true;
+    newSlot.appointment = appointment._id;
+    await newDentist.save();
+
+    // Update appointment record
+    appointment.dentist = dentistId;
+    appointment.apptDate = apptDate;
+    appointment.apptTimeSlot = apptTimeSlot;
+    await appointment.save();
+
+    return res.status(200).json({ success: true, data: appointment, message: "Appointment updated" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 // @desc Delete appointment
 // @route DELETE /api/v1/appointments/:id
 // @access Private
-exports.deleteAppointment = async (req, res, next) => {
+exports.deleteAppointment = async (req, res) => {
   try {
-    const appointment = await Appointment.findById(req.params.id);
+    const appointment = await Appointment.findById(req.params.id).populate("dentist");
 
     if (!appointment) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({ success: false, message: "Appointment not found" });
     }
 
-    if (
-      appointment.user.toString() !== req.user.id &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(401).json({
+    // Authorization check
+    if (appointment.user.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({
         success: false,
-        message: `User ${req.user.id} is not authorized to delete this appointment`,
+        message: `User ${req.user.id} not authorized to delete this appointment`,
       });
+    }
+
+    const dentist = appointment.dentist;
+
+    // Release the slot
+    const dateSlot = dentist.timeslots.find(slot => slot.date === appointment.apptDate);
+    const slot = dateSlot?.slots.find(s => s.time === appointment.apptTimeSlot);
+
+    if (slot) {
+      slot.booked = false;
+      slot.appointment = null;
+      await dentist.save();
     }
 
     await appointment.deleteOne();
 
-    res.status(200).json({ success: true, data: {} });
-  } catch (error) {
-    res.status(500).json({ success: false });
+    return res.status(200).json({ success: true, message: "Appointment deleted" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
